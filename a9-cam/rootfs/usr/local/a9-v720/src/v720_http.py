@@ -387,6 +387,12 @@ class v720_http(log, BaseHTTPRequestHandler):
             ret = {"code": 200, "message": "OK", "data": None}
         elif self.path.startswith('/app/api/ApiSysDevices/a9bindingAppDevice'):
             ret = {"code": 200, "message": "OK", "data": None}
+        elif self.path.startswith('/app/api/ApiSysDevices/getDevInfo'):
+            # FW >= 2024 handshake: the camera asks for its device info
+            # before anything else. userInfo_state is the only required
+            # field. Community fix by 0x3dlux (intx82/a9-v720 issue #51).
+            ret = {"code": 200, "message": "OK",
+                   "data": {"userInfo_state": 1}}
         elif self.path.startswith('/app/api/ApiServer/getA9ConfCheck'):
             uid = f'{random.randint(0,99999):05d}'
             p = self.path[len('/app/api/ApiServer/getA9ConfCheck?'):]
@@ -412,7 +418,10 @@ class v720_http(log, BaseHTTPRequestHandler):
             }
 
         if ret is not None:
-            ret = json.dumps(ret)
+            # Trailing space: without it the stock framing cuts 2 bytes
+            # off the body and 2024+ FW silently rejects the reply
+            # (intx82/a9-v720 issue #51, fix by 0x3dlux).
+            ret = json.dumps(ret) + " "
             hdr.append(f'Content-Length: {len(ret)}')
             hdr.append('\r\n')
             hdr.append(ret)
